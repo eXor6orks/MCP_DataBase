@@ -1,0 +1,7 @@
+connections:
+  prod:
+    url: "mysql+pymysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:3306/${DB_NAME}"
+    description: "Production database connection"
+  local_test:
+    url: "postgresql+psycopg://${PG_USER}:${PG_PASSWORD}@localhost:5432/testdb"
+    description: "Local test database connection"
