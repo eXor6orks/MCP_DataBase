@@ -1,3 +1,10 @@
+"""
+TODO : integrate the validation of the database type
+and version to ensure compatibility with the application.
+See : https://docs.sqlalchemy.org/en/21/dialects/index.html
+for more information.
+"""
+
 import os
 import re
 from pathlib import Path
@@ -14,12 +21,6 @@ class ConfigError(Exception):
 class ConnectionConfig(BaseModel):
     url: str
     description: str
-
-    @field_validator("url")
-    def validate_url(cls, v):
-        if not re.match(r"^\w+://", v):
-            raise ValueError("Invalid URL format")
-        return v
 
 class AppConfig(BaseModel):
     connections: dict[str, ConnectionConfig]
