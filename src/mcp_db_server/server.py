@@ -1,9 +1,11 @@
 from fastmcp import FastMCP
+from typing import Any
 
 from mcp_db_server.config import AppConfig, load_config
 from mcp_db_server.policy import load_policy
 from mcp_db_server.db.conn import ConnectionManager
 from mcp_db_server.tools import read as read_tools
+from mcp_db_server.tools.read import DEFAULT_LIMIT, FilterCondition
 from mcp_db_server.policy import AccessLevel, no_policy_check, read_extractor, requires_policy
 
 try:
@@ -75,36 +77,34 @@ def list_rows(
     connection_name: str,
     table_name: str,
     after_cursor: str | None = None,
-    limit: int = 50,
+    limit: int = DEFAULT_LIMIT,
+    filters: list[FilterCondition] | dict[str, Any] | None = None,
+    columns: list[str] | None = None,
 ) -> dict:
     """
-    List rows from a specific table in the specified database connection,
-    paginated by cursor.
-
-    Pagination uses keyset (cursor on a unique column) whenever the table
-    has a single-column primary key, unique constraint, or unique index.
-    If none is found, it falls back to offset-based pagination — slower
-    and less stable under concurrent writes, but keeps the tool usable on
-    any table. Check "pagination_mode" in the response to know which was used.
+    List rows from a table, paginated by cursor, with optional filtering and column selection.
 
     Args:
-        connection_name (str): The name of the database connection as defined in the configuration.
-        table_name (str): The name of the table from which to retrieve rows.
-        after_cursor (str, optional): Opaque cursor returned by a previous call, to fetch the next page.
-        limit (int, optional): The maximum number of rows to retrieve. Defaults to 50.
+        connection_name (str): The database connection name, as defined in the configuration.
+        table_name (str): The table to read from.
+        after_cursor (str, optional): Cursor from a previous call, to fetch the next page.
+        limit (int, optional): Max rows to return. Defaults to 50.
+        filters (optional): Either a simple dict for equality filters, e.g.
+            {"status": "pending", "city": "Lyon"} — OR a list of conditions for
+            comparisons, e.g. [{"column": "amount", "operator": "gt", "value": 1000}].
+            Operators: eq, ne, gt, gte, lt, lte, like, in, is_null (=, >, contains, etc.
+            are also accepted and normalized automatically).
+        columns (list[str], optional): Subset of columns to return. Defaults to all.
 
     Returns:
-        dict: {
-            "rows": list[dict],
-            "next_cursor": str | None,   # None when there is no further page
-            "pagination_mode": "keyset" | "offset",
-        }
+        dict: {"rows": list[dict], "next_cursor": str | None, "pagination_mode": "keyset" | "offset"}
 
     Raises:
-        ValueError: If the connection is unknown, the table has a composite primary key,
-            or the limit exceeds the maximum allowed value.
+        ValueError: Unknown connection, unknown column/operator, composite PK, or limit too high.
     """
-    return read_tools.list_rows(_conn_manager, connection_name, table_name, after_cursor, limit)
+    return read_tools.list_rows(
+        _conn_manager, connection_name, table_name, after_cursor, limit, filters, columns
+    )
 
 
 if __name__ == "__main__":
