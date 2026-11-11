@@ -11,6 +11,7 @@ from pathlib import Path
 
 import yaml
 from pydantic import BaseModel, ValidationError
+from fastmcp.exceptions import ToolError
 
 from enum import Enum
 from typing import Callable
@@ -33,8 +34,10 @@ class NotFoundPolicyException(PolicyException):
 class InvalidPolicyException(PolicyException):
     """Raised when a policy is invalid."""
 
-class PolicyDeniedException(PolicyException):
-    """Raised when an operation is denied by the policy."""
+class PolicyDeniedException(PolicyException, ToolError):
+    """Raised when an operation is denied by policy.
+    Hérite aussi de ToolError : son message reste toujours visible
+    par le client, même si mask_error_details est activé en prod."""
 
 class AccessLevel(Enum):
     READ = "read"

@@ -1,27 +1,42 @@
 from fastmcp import FastMCP
 from typing import Any
+import logging
+import sys
 
-from mcp_db_server.config import AppConfig, load_config
-from mcp_db_server.policy import load_policy
+from mcp_db_server.config import AppConfig, load_config, ConfigError
+from mcp_db_server.policy import load_policy, PolicyException
 from mcp_db_server.db.conn import ConnectionManager
 from mcp_db_server.tools import read as read_tools
 from mcp_db_server.tools.read import DEFAULT_LIMIT, FilterCondition
 from mcp_db_server.policy import AccessLevel, no_policy_check, read_extractor, requires_policy
+from mcp_db_server.middleware.PolicyMiddleware import PolicyMiddleware
 
+from fastmcp.server.middleware.error_handling import ErrorHandlingMiddleware
+from fastmcp.server.middleware.logging import LoggingMiddleware
+
+"""Load logging process in server"""
+logging.basicConfig(stream=sys.stderr, level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
+
+"""Load configuration and policy files"""
 try:
     config : AppConfig = load_config()
-except Exception as e:
-    print(f'Error loading configuration: {e}')
+except ConfigError:
+    logger.exception("Erreur de chargement de la configuration")
     raise SystemExit(1)
 
 try:
-    policy = load_policy(connection_names=config.connections.keys())
-except Exception as e:
-    print(f'{e}')
+    _policy = load_policy(connection_names=config.connections.keys())
+except PolicyException as e:
+    logger.exception(f"Error loading policy: {e}")
     raise SystemExit(1)
 
 
 mcp = FastMCP("mcp-db-server")
+
+mcp.add_middleware(ErrorHandlingMiddleware())
+mcp.add_middleware(LoggingMiddleware())
+mcp.add_middleware(PolicyMiddleware(_policy))
 
 _conn_manager = ConnectionManager(config)
 
